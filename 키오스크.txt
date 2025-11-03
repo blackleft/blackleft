@@ -1,0 +1,285 @@
+import datetime
+import time
+import random
+
+def deco(fn):
+    def reciept(self):
+        print('⟝' + '-' * 30 + '⟞')
+        for i in range(3):
+            print('|' + ' ' * 31 + '|')
+        fn(self)
+        print('='*33)
+        print("Thank You".center(32))
+        for i in range(3):
+            print('|' + ' ' * 31 + '|')
+        print('⟝' + '-' * 30 + '⟞')
+    return reciept
+
+
+class Kiosk:
+    def __init__(self):
+        self.menu = [
+            {'name':'americano','price': 2000,"count":1},
+            {'name':'latte','price': 3000,"count":2},
+            {'name':'mocha','price': 3000,"count":3},
+            {'name':'yuza_tea','price': 2500,"count":1},
+            {'name':'green_tea','price': 2500,"count":1},
+            {'name':'choco_latte','price': 3000,"count":0}
+        ]
+        self.order_menu = []
+        self.order_price = []
+        self.order_items = []   # ✅ 메뉴 이름 저장 리스트 (수량 복원용)
+        self.macaron_coupon = False  
+
+    # 인트로 메서드
+    def greeting(self):
+        # ✅ UTC 기준 +9시간으로 한국 시간 맞춤
+        now = datetime.datetime.utcnow() + datetime.timedelta(hours=9)
+        hour = now.hour
+
+        if 5 <= hour < 12:
+            greeting = "☀️ 좋은 아침입니다! 향긋한 커피 한 잔 어떠세요?"
+        elif 12 <= hour < 18:
+            greeting = "🌼 안녕하세요! 오후의 여유를 즐겨보세요."
+        elif 18 <= hour < 22:
+            greeting = "🌙 반갑습니다! 저녁에도 따뜻한 한 잔 어때요?"
+        else:
+            greeting = "🌃 늦은 시간에도 찾아주셔서 감사합니다."
+
+        print(greeting.center(70, '='))
+
+    # 메뉴 출력
+    def menu_print(self):
+        for i, item in enumerate(self.menu):
+            if item['count'] == 0:
+                print(i + 1, item['name'], ' : Sold Out')
+            else:
+                print(i + 1, item['name'], ' : ', item['price'], '원')
+
+    # 주문
+    def menu_select(self):
+        while True:
+            try:
+                n = int(input("\n음료의 번호를 입력하세요: "))
+            except ValueError:
+                print("숫자를 입력해주세요.")
+                continue
+            if not (1 <= n <= len(self.menu)):
+                print("없는 메뉴입니다. 다시 주문해 주세요.")
+                continue
+            if self.menu[n-1]['count'] <= 0:
+                print('재료가 모두 소진된 메뉴입니다. 다시 주문해 주세요.')
+                continue
+        
+            item = self.menu[n-1]
+            self.menu_selected = item['name']
+            self.price_selected = item['price']
+            item['count'] -= 1
+            break
+            
+        # 온도
+        while True:
+            try:
+                t = int(input('HOT 음료는 1을, ICE 음료는 2를 입력하세요: '))
+                if t == 1:
+                    self.temp = "🔥HOT"
+                    self.receipt_temp = "HOT"
+                    break
+                elif t == 2:
+                    self.temp = "🧊ICE"
+                    self.receipt_temp = "ICE"
+                    break
+                else:
+                    print("1과 2 중 하나를 입력하세요.")
+            except ValueError:
+                print("숫자를 입력해주세요.")
+
+        # ✅ 당도 선택 제거 완료
+
+        # 컵 종류
+        while True:
+            mug = input("머그컵 사용하시겠습니까? (y/n): ").lower()
+            if mug in ('y', 'yes'):
+                self.mug = "머그컵☕"
+                self.receipt_mug = "머그컵"
+                break
+            elif mug in ('n', 'no'):
+                self.mug = "일회용컵🥤"
+                self.receipt_mug = "일회용컵"
+                break
+            else:
+                print("y 또는 n으로 입력해주세요.")
+
+        # 사이즈
+        while True:
+            size = input("사이즈를 선택하세요 (S / M / L): ").upper()
+            if size in ('S', 'M', 'L'):
+                self.size = size
+                if size == 'M':
+                    self.price_selected += 500
+                elif size == 'L':
+                    self.price_selected += 1000
+                break
+            else:
+                print("S, M, L 중에서 선택해주세요.")
+
+        display_name = f"{self.temp} {self.size} {self.menu_selected} ({self.mug})"
+        receipt_name = f"{self.receipt_temp} {self.size} {self.menu_selected}"
+
+        self.order_menu.append(display_name)
+        self.order_price.append(self.price_selected)
+        self.order_items.append(self.menu_selected)  # ✅ 메뉴 이름 저장
+        self.receipt_menu = getattr(self, "receipt_menu", [])
+        self.receipt_menu.append(receipt_name)
+
+        print(f"\n✅ 주문 음료: {display_name}  :  {self.price_selected} 원")
+        print('💰 주문 합계 :', sum(self.order_price), '원')
+
+    def ask_order(self):
+        while True:
+            n = int(input('\n주문 완료 : 0\n추가 주문 : 1\n일부 취소 : 2\n전부 취소 : 3\n입력 : '))
+            if n == 0:
+                break
+            elif n == 1:
+                print()
+                self.add_order()
+            elif n == 2:
+                self.cancel_order()
+            elif n == 3:
+                self.cancel_all()
+                print('\n초기 화면으로 돌아갑니다.\n')
+                self.greeting()
+                self.menu_print()
+                self.menu_select()
+                self.ask_order()
+                return
+            else:
+                n = int(input('입력 오류, 다시 골라주세요: '))
+        self.pay()
+
+    def add_order(self):
+        self.menu_print() 
+        self.menu_select()
+        
+    def cancel_order(self):
+        print()
+        for i, order in enumerate(zip(self.order_menu,self.order_price)):
+            print(i+1, order[0], ':', order[1], '원')
+        n = int(input('취소하고 싶은 주문 번호를 하나 선택하세요: '))
+        
+        canceled_menu = self.order_menu.pop(n-1)
+        canceled_item = self.order_items.pop(n-1)
+        self.order_price.pop(n-1)
+
+        for i in self.menu:
+            if i['name'] == canceled_item:
+                i['count'] += 1
+                break
+
+        print(canceled_menu+'가 취소되었습니다.')
+        print('주문 목록 :', [x for x in self.order_menu])
+
+        # ✅ 주문이 전부 취소된 경우 초기화면으로 복귀
+        if not self.order_menu:
+            print("\n모든 주문이 취소되어 초기 화면으로 돌아갑니다.\n")
+            self.greeting()
+            self.menu_print()
+            self.menu_select()
+            self.ask_order()
+            return
+
+    def cancel_all(self):
+        for item_name in self.order_items:
+            for j in self.menu:
+                if j['name'] == item_name:
+                    j['count'] += 1
+                    break
+        self.order_menu.clear()
+        self.order_price.clear()
+        self.order_items.clear()
+
+    def event_quiz(self):
+        n = input("이벤트에 참여해주세요!\n퀴즈를 맞추면 달콤한 미니 마카롱🍬을 드립니다!\n이벤트 참여(1), 바로 결제(0): ")
+
+        try:
+            n = int(n)
+        except ValueError:
+            print("잘못된 입력입니다. 다시 입력해주세요.\n")
+            return self.event_quiz()
+
+        if n == 1:
+            print("\n🎉 퀴즈에 참여하셨습니다!\n")
+            print("객체가 생성될 때 자동으로 호출되는 메서드는 무엇일까요?\n")
+            print("아래 보기 중 알맞은 답의 번호를 입력해주세요.\n")
+
+            answers = ["init()", "call()", "main()", "start()"]
+            for i, ans in enumerate(answers, start=1):
+                print(f"{i}. {ans}")
+
+            answer = input("\n정답 번호 입력: ")
+
+            if answer == "1":
+                print("\n멋진 그루님, 정답입니다! 🎉")
+                print("\n💡 해설:")
+                print("`__init__()`은 **생성자(Constructor)**입니다.")
+                print("객체가 생성될 때 자동으로 호출되어, 인스턴스 변수를 초기화합니다.\n")
+                print("[달콤한 미니 마카롱🍬] 쿠폰을 발급해드릴게요!\n")
+                self.macaron_coupon = True
+            else:
+                print("\n아쉽지만 다른 답을 고르셨네요 😢 다음 기회에 만나요!\n")
+                self.macaron_coupon = False
+
+        elif n == 0:
+            print("\n이벤트를 건너뛰고 바로 결제를 진행합니다.\n")
+        else:
+            print("잘못된 번호입니다. 다시 선택해주세요.\n")
+            return self.event_quiz()
+
+    def pay(self):
+        print('\n' + '=' * 33 + '\n메뉴 선택 완료\n' + '=' * 33)
+        self.event_quiz()
+        n = input("\n결제 방법을 선택해주세요.\n현금('cash' or 1) 카드('card' or 2): ")
+        while n not in ('현금', 'cash', '1', '카드', 'card', '2'):
+            n = input('\n다시 입력해주세요: ')
+        if n in ('현금', 'cash', '1'):
+            print('\n직원을 호출하겠습니다.')
+            time.sleep(2)
+            print('💵 현금 결제 중...')
+            self.payment_method = '현금'
+            self.cash_recieved = random.randint(sum(self.order_price), sum(self.order_price) + 30000)
+            time.sleep(2)
+            return self.table()
+        elif n in ('카드', 'card', '2'):
+            print('\nIC칩 방향에 맞게 카드를 꽂아주세요.')
+            time.sleep(1)
+            print('💳 카드 읽는 중...')
+            self.payment_method = '카드'
+            self.card_num = '****-****-****-' + str(random.randint(0, 9999)).zfill(4)
+            time.sleep(2)
+            return self.table()
+
+    @deco
+    def table(self):
+        print('주문 일시 : ' + (datetime.datetime.utcnow() + datetime.timedelta(hours=9)).strftime("%Y-%m-%d %H:%M:%S"))
+        print('=' * 33)
+        for i in range(len(self.receipt_menu)):
+            print(self.receipt_menu[i], ' : ', self.order_price[i])
+        print('=' * 33)
+        print('합계 금액 :', sum(self.order_price))
+        print('결제 수단 :', self.payment_method)
+        if self.payment_method == '카드':
+            print('카드 번호 :', self.card_num)
+        elif self.payment_method == '현금':
+            print('받은 돈 :', self.cash_recieved)
+            print('거스름 돈 :', self.cash_recieved - sum(self.order_price))
+
+        if hasattr(self, 'macaron_coupon') and self.macaron_coupon:
+            print("[미니 마카롱 쿠폰]".center(27, '*'))
+
+
+if __name__ == "__main__":
+    kiosk = Kiosk()
+    kiosk.greeting()
+    kiosk.menu_print()
+    kiosk.menu_select()
+    kiosk.ask_order()
